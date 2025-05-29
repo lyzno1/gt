@@ -33,7 +33,7 @@ impl RecoveryStrategy {
             // 严重错误，需要中止
             GtError::NotInGitRepo
             | GtError::GitError(_)
-            | GtError::IoError(_)
+            | GtError::IoError { .. }
             | GtError::PermissionDenied { .. } => Self::Abort,
             
             // 其他错误提示用户

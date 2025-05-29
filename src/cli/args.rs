@@ -6,11 +6,46 @@ use clap::{Parser, Subcommand};
 use crate::error::GtResult;
 
 /// GT (Git Toolkit) - 下一代 Git 工作流工具
+/// 
+/// GT 是一个现代化的 Git 工作流工具，专为开发者日常工作流程设计。
+/// 它提供了简洁直观的命令来处理常见的 Git 操作，让版本控制变得更加高效。
+/// 
+/// 🚀 快速开始:
+///   gt start feature/login    # 开始新功能开发
+///   gt save "实现登录功能"     # 保存进度  
+///   gt update                 # 同步最新代码
+///   gt ship --pr              # 提交工作成果并创建PR
+/// 
+/// 💡 核心理念:
+///   - 流程驱动: 命令对应开发意图，而非Git技术细节
+///   - 智能默认: 减少决策负担，提供最佳实践
+///   - 安全第一: 防止误操作，提供清晰反馈
+///   - 高性能: 基于Rust，启动快速，操作高效
 #[derive(Parser)]
 #[command(name = "gt")]
-#[command(about = "Git Toolkit - Next generation Git workflow tool")]
+#[command(about = "🚀 Git Toolkit - 现代化 Git 工作流工具")]
+#[command(long_about = r#"
+GT (Git Toolkit) - 下一代 Git 工作流工具
+
+GT 是一个现代化的 Git 工作流工具，专为开发者日常工作流程设计。
+它提供了简洁直观的命令来处理常见的 Git 操作，让版本控制变得更加高效。
+
+🚀 快速开始:
+  gt start feature/login    # 开始新功能开发
+  gt save "实现登录功能"     # 保存进度  
+  gt update                 # 同步最新代码
+  gt ship --pr              # 提交工作成果并创建PR
+
+💡 核心理念:
+  - 流程驱动: 命令对应开发意图，而非Git技术细节
+  - 智能默认: 减少决策负担，提供最佳实践
+  - 安全第一: 防止误操作，提供清晰反馈
+  - 高性能: 基于Rust，启动快速，操作高效
+
+📖 更多信息: https://github.com/lyzno1/gt
+"#)]
 #[command(version)]
-#[command(author = "GT Team")]
+#[command(author = "GT Team <gt@lyzno1.dev>")]
 pub struct Cli {
     /// 启用详细输出
     #[arg(short, long, global = true)]
@@ -39,39 +74,84 @@ impl Cli {
 }
 
 /// 所有可用的命令
+/// 
+/// GT 的命令按功能分为四大类：
+/// 1. 🌟 核心工作流 - 日常开发的主要命令
+/// 2. 🛠️ Git增强 - Git命令的现代化封装
+/// 3. 🚀 仓库管理 - 项目初始化和配置
+/// 4. 🔧 高级功能 - 专业开发者工具
 #[derive(Subcommand)]
 pub enum Commands {
-    // ⭐ 核心工作流命令 (Core Workflow) ⭐
+    // 🌟 核心工作流命令 (Core Workflow Commands)
+    // 这些命令覆盖了日常开发的80%场景
     
-    /// 开始新的功能分支 (对应 gw start)
+    /// 🌱 开始新的功能分支
+    /// 
+    /// 这是所有功能开发的起点。GT会：
+    /// • 从最新的主分支创建新分支
+    /// • 自动同步远程更新  
+    /// • 设置合适的上游追踪
+    /// 
+    /// 示例：
+    ///   gt start feature/user-auth      # 标准功能分支
+    ///   gt start hotfix/login-bug -b develop  # 从develop分支创建hotfix
+    ///   gt start experiment/new-ui -l  # 仅本地分支
+    #[command(visible_alias = "new")]
     Start {
-        /// 分支名称
+        /// 分支名称 (建议格式: feature/name, hotfix/name, experiment/name)
+        #[arg(help = "分支名称，建议使用 feature/name 格式")]
         branch: String,
         
-        /// 基础分支
+        /// 基础分支 (默认: main)
         #[arg(short = 'b', long, default_value = "main")]
+        #[arg(help = "基础分支，新分支将从此分支创建")]
         base: String,
         
-        /// 仅使用本地分支，不拉取远程
+        /// 本地模式：不拉取远程更新，不推送到远程
         #[arg(short = 'l', long)]
+        #[arg(help = "仅在本地创建分支，不同步远程")]
         local: bool,
     },
     
-    /// 保存当前工作 (对应 gw save - add + commit)
+    /// 💾 保存当前工作进度
+    /// 
+    /// 相当于 git add + git commit 的智能组合。GT会：
+    /// • 智能选择要提交的文件
+    /// • 提供交互式提交信息编辑
+    /// • 验证提交内容的合理性
+    /// 
+    /// 示例：
+    ///   gt save                         # 交互式提交所有变更
+    ///   gt save -m "修复登录bug"        # 快速提交
+    ///   gt save src/auth.rs -e          # 提交特定文件并编辑消息
+    #[command(visible_alias = "s")]
     Save {
-        /// 提交信息
+        /// 提交信息 (如果不提供将进入交互模式)
         #[arg(short = 'm', long)]
+        #[arg(help = "提交信息，留空将进入交互模式")]
         message: Option<String>,
         
-        /// 强制使用编辑器
+        /// 强制使用编辑器编辑提交信息
         #[arg(short = 'e', long)]
+        #[arg(help = "使用编辑器编辑提交信息")]
         edit: bool,
         
-        /// 要添加的文件 (默认为所有文件)
+        /// 要添加的文件 (默认为所有变更)
+        #[arg(help = "指定要提交的文件，留空则提交所有变更")]
         files: Vec<String>,
     },
     
-    /// 保存并推送 (对应 gw sp - save + push)
+    /// 🚀 保存并推送 (save + push)
+    /// 
+    /// 完整的进度保存流程，包括：
+    /// • 保存当前工作 (如 save 命令)
+    /// • 推送到远程仓库
+    /// • 验证推送结果
+    /// 
+    /// 示例：
+    ///   gt sp -m "完成用户认证模块"     # 保存并推送
+    #[command(name = "sp")]
+    #[command(about = "保存并推送到远程 (save + push)")]
     Sp {
         /// 提交信息
         #[arg(short = 'm', long)]
@@ -81,55 +161,103 @@ pub enum Commands {
         #[arg(short = 'e', long)]
         edit: bool,
         
-        /// 要添加的文件 (默认为所有文件)
+        /// 要添加的文件
         files: Vec<String>,
     },
     
-    /// 更新当前分支 (对应 gw update)
+    /// 🔄 同步分支到最新状态
+    /// 
+    /// 智能同步当前分支，自动处理：
+    /// • 暂存未提交的变更
+    /// • 拉取主分支最新更新
+    /// • 将当前分支rebase到最新主分支
+    /// • 恢复之前暂存的变更
+    /// 
+    /// 示例：
+    ///   gt update                       # 标准同步
+    ///   gt update -f                    # 强制同步(忽略未提交变更)
+    #[command(visible_alias = "sync")]
     Update {
-        /// 强制推送
+        /// 强制模式：忽略未提交的变更进行同步
         #[arg(short = 'f', long)]
+        #[arg(help = "强制同步，忽略未提交的变更")]
         force: bool,
     },
     
-    /// 提交工作成果 (对应 gw submit)
+    /// 🚢 提交工作成果 (ship to production)
+    /// 
+    /// 完整的功能交付流程，包括：
+    /// • 推送分支到远程
+    /// • 创建Pull Request (可选)
+    /// • 自动合并 (可选)
+    /// • 切换回主分支并清理
+    /// 
+    /// 示例：
+    ///   gt ship                         # 简单推送
+    ///   gt ship --pr                    # 创建PR
+    ///   gt ship -a                      # 创建PR并自动合并(rebase)
+    ///   gt ship -s --delete-branch      # 使用squash合并并删除分支
+    #[command(visible_alias = "submit")]
     Ship {
-        /// 不切换回主分支
+        /// 完成后不切换回主分支
         #[arg(long)]
+        #[arg(help = "完成后保持在当前分支")]
         no_switch: bool,
         
         /// 创建 Pull Request
         #[arg(short = 'p', long)]
+        #[arg(help = "在GitHub上创建Pull Request")]
         pr: bool,
         
-        /// 自动合并 (rebase 策略)
+        /// 自动合并 (使用rebase策略，推荐)
         #[arg(short = 'a', long)]
+        #[arg(help = "创建PR并自动合并，使用rebase策略")]
         auto_merge: bool,
         
-        /// 自动合并 (squash 策略)
+        /// 自动合并 (使用squash策略)
         #[arg(short = 's', long)]
+        #[arg(help = "创建PR并自动合并，使用squash策略")]
         squash: bool,
         
-        /// 自动合并 (merge 策略)
+        /// 自动合并 (使用merge策略)
         #[arg(short = 'm', long)]
+        #[arg(help = "创建PR并自动合并，使用merge策略")]
         merge: bool,
         
-        /// 合并后删除分支
+        /// 合并后删除源分支
         #[arg(long)]
+        #[arg(help = "合并完成后删除功能分支")]
         delete_branch: bool,
     },
     
-    /// 删除分支 (对应 gw rm)
+    /// 🗑️ 删除分支
+    /// 
+    /// 安全地删除本地或远程分支：
+    /// • 检查分支是否已合并
+    /// • 提供强制删除选项
+    /// • 支持批量删除
+    /// 
+    /// 示例：
+    ///   gt rm feature/old-feature       # 删除已合并的分支
+    ///   gt rm feature/broken -f         # 强制删除分支
+    ///   gt rm all                       # 删除所有已合并的分支
     Rm {
-        /// 分支名称或 "all"
+        /// 分支名称，或 "all" 删除所有已合并分支
+        #[arg(help = "分支名称，或使用 'all' 删除所有已合并分支")]
         branch: String,
         
-        /// 强制删除
+        /// 强制删除 (即使未合并)
         #[arg(short = 'f', long)]
+        #[arg(help = "强制删除，即使分支未合并")]
         force: bool,
     },
     
-    /// 清理分支 (对应 gw clean)
+    /// 🧹 清理和重置分支
+    /// 
+    /// 重置分支到干净状态：
+    /// • 撤销未提交的变更
+    /// • 清理未追踪的文件  
+    /// • 重置到指定状态
     Clean {
         /// 分支名称
         branch: String,
@@ -335,6 +463,29 @@ pub enum Commands {
     Ide {
         /// 编辑器名称或命令
         editor: Option<String>,
+    },
+    
+    /// 🔄 更新 GT 自身
+    /// 
+    /// 自动更新 GT 到最新版本：
+    /// • 使用 GT 自己拉取最新源码
+    /// • 重新编译和安装
+    /// • 验证更新结果
+    /// 
+    /// 示例：
+    ///   gt update-self                  # 更新到最新版本
+    ///   gt update-self --check          # 仅检查是否有更新
+    #[command(name = "update-self")]
+    UpdateSelf {
+        /// 仅检查更新，不执行安装
+        #[arg(long)]
+        #[arg(help = "仅检查是否有可用更新")]
+        check: bool,
+        
+        /// 跳过确认提示
+        #[arg(short = 'y', long)]
+        #[arg(help = "跳过确认提示，直接更新")]
+        yes: bool,
     },
 }
 

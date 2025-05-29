@@ -21,15 +21,16 @@
 
 pub mod cli;
 pub mod commands;
+pub mod config;
+pub mod error;
 pub mod git;
+pub mod ui;
 pub mod github;
 pub mod workflow;
-pub mod config;
-pub mod ui;
-pub mod error;
 pub mod utils;
 
 // 重新导出核心类型
-pub use error::{GtError, GtResult};
-pub use config::GtConfig;
-pub use git::Repository; 
+pub use error::{GtResult, GtError};
+pub use git::{Repository, GitOps};
+pub use config::{ConfigManager, RepoConfig};
+pub use github::{GithubCli, PullRequestManager, MergeStrategy}; 

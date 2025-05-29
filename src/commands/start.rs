@@ -24,6 +24,8 @@ pub struct StartOptions {
     pub skip_update: bool,
     /// 自定义描述
     pub description: Option<String>,
+    /// 预演模式（不执行实际操作）
+    pub dry_run: bool,
 }
 
 impl Default for StartOptions {
@@ -35,6 +37,7 @@ impl Default for StartOptions {
             force: false,
             skip_update: false,
             description: None,
+            dry_run: false,
         }
     }
 }
@@ -171,6 +174,12 @@ impl StartCommand {
     
     /// 更新基础分支
     async fn update_base_branch(&self, git_ops: &GitOps, config: &RepoConfig, base_branch: &str) -> GtResult<()> {
+        if self.options.dry_run {
+            print_step(&format!("🔍 [预演] 更新基础分支 '{}' 到最新状态", base_branch));
+            print_success(&format!("🔍 [预演] 基础分支 '{}' 已更新到最新状态", base_branch));
+            return Ok(());
+        }
+        
         let current_branch = git_ops.current_branch()?;
         
         // 如果当前不在基础分支上，需要切换
@@ -226,6 +235,12 @@ impl StartCommand {
     
     /// 推送分支到远程
     async fn push_branch(&self, git_ops: &GitOps, config: &RepoConfig) -> GtResult<()> {
+        if self.options.dry_run {
+            print_step(&format!("🔍 [预演] 推送分支 '{}' 到远程", self.options.branch));
+            print_success(&format!("🔍 [预演] 分支 '{}' 已推送到远程", self.options.branch));
+            return Ok(());
+        }
+        
         print_step(&format!("推送分支 '{}' 到远程", self.options.branch));
         
         // 使用网络重试机制推送

@@ -1,27 +1,30 @@
-//! Git 分支操作
-//! 
-//! 提供分支创建、切换、删除等操作。
-
 use crate::error::{GtResult, GtError};
 
-/// 分支操作
-pub struct BranchManager {
-    // TODO: 添加字段
+/// 分支信息
+#[derive(Debug, Clone)]
+pub struct Branch {
+    pub name: String,
+    pub is_current: bool,
+    pub is_remote: bool,
+    pub upstream: Option<String>,
+    pub ahead: usize,
+    pub behind: usize,
+    pub last_commit: Option<String>,
 }
 
-impl BranchManager {
-    /// 创建新的分支管理器
-    pub fn new() -> Self {
-        Self {
-            // TODO: 初始化字段
-        }
-    }
-    
-    /// 创建新分支
-    pub async fn create_branch(&self, _name: &str, _base: &str) -> GtResult<()> {
-        // TODO: 实现分支创建逻辑
-        Err(GtError::NotImplemented { 
-            feature: "branch creation".to_string() 
-        })
+impl Branch {
+    /// 检查分支名是否有效
+    pub fn is_valid_name(name: &str) -> bool {
+        !name.is_empty() 
+        && !name.contains("..")
+        && !name.starts_with('/')
+        && !name.ends_with('/')
+        && !name.contains(' ')
+        && !name.contains('~')
+        && !name.contains('^')
+        && !name.contains(':')
+        && !name.contains('?')
+        && !name.contains('*')
+        && !name.contains('[')
     }
 } 

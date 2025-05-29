@@ -1,0 +1,175 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# GT 测试和调试指南
+
+## 当前问题分析
+
+### 1. TLS 连接问题
+从日志可以看到 "there is no TLS stream available; class=Ssl (16)" 错误，这是网络连接问题。
+
+**解决方案：**
+```bash
+# 检查 Git 配置
+git config --global http.sslVerify false  # 临时解决方案
+# 或者配置代理
+git config --global http.proxy http://proxy:port
+```
+
+### 2. 功能未完全实现
+很多命令显示 "功能未实现" 错误，特别是：
+- `gt config` - 配置管理未实现
+- 部分 Git 操作的具体实现
+
+## 测试策略
+
+### 1. 使用预演模式测试
+预演模式已在 [src/cli/args.rs](mdc:src/cli/args.rs) 和 [src/cli/router.rs](mdc:src/cli/router.rs) 中实现：
+
+```bash
+# 使用预演模式测试所有命令
+cargo run -- --dry-run start feature/test
+cargo run -- --dry-run save -m "测试提交"
+cargo run -- --dry-run update
+cargo run -- --dry-run ship --pr
+```
+
+### 2. 本地模式测试
+对于网络相关问题，使用本地模式：
+
+```bash
+# 本地模式创建分支（不拉取远程）
+cargo run -- start feature/test --local
+```
+
+### 3. 详细输出模式
+启用详细输出查看执行过程：
+
+```bash
+cargo run -- --verbose start feature/test
+```
+
+### 4. 非交互模式
+自动确认所有提示：
+
+```bash
+cargo run -- --yes start feature/test
+```
+
+## 测试用例
+
+### 基础功能测试
+```bash
+# 1. 帮助信息
+cargo run -- --help
+cargo run -- start --help
+
+# 2. 版本信息
+cargo run -- --version
+
+# 3. 状态检查
+cargo run -- status
+
+# 4. 预演模式测试
+cargo run -- --dry-run start test-branch
+cargo run -- --dry-run save -m "test commit"
+```
+
+### 命令实现状态检查
+
+#### 已实现的命令
+- `gt start` - 基本实现，但有网络依赖问题
+- `gt save` - 基本实现
+- `gt status` - 基本实现
+- `gt update` - 基本实现
+
+#### 未实现的命令
+- `gt config` - 返回 NotImplemented 错误
+- `gt init` - 结构存在但功能未完整实现
+- `gt clean` - 结构存在但功能未完整实现
+- `gt ship` - 部分实现，GitHub 集成可能有问题
+
+## 调试技巧
+
+### 1. 日志级别控制
+```bash
+# 设置日志级别
+RUST_LOG=debug cargo run -- start test
+RUST_LOG=trace cargo run -- start test
+```
+
+### 2. 编译时检查
+```bash
+# 检查代码格式和 lint
+make check
+cargo clippy --all-targets --all-features
+```
+
+### 3. 单元测试
+```bash
+# 运行测试
+cargo test
+```
+
+### 4. 离线测试环境
+创建一个本地 Git 仓库进行测试：
+
+```bash
+# 创建测试仓库
+mkdir test-repo && cd test-repo
+git init
+echo "# Test" > README.md
+git add README.md
+git commit -m "Initial commit"
+
+# 在此仓库中测试 GT 命令
+/path/to/gt/target/debug/gt status
+```
+
+## 开发建议
+
+### 1. 优先修复的问题
+1. 网络连接问题 - 添加离线模式或更好的错误处理
+2. 未实现的命令 - 完成 config、init、clean 等命令
+3. GitHub 集成 - 确保 GitHub CLI 集成正常工作
+
+### 2. 测试驱动开发
+在 [tests/](mdc:tests) 目录下创建集成测试：
+
+```rust
+// tests/integration_tests.rs
+#[test]
+fn test_dry_run_mode() {
+    // 测试预演模式不会执行实际操作
+}
+
+#[test]
+fn test_local_mode() {
+    // 测试本地模式功能
+}
+```
+
+### 3. 错误处理改进
+在 [src/error/types.rs](mdc:src/error/types.rs) 中添加更具体的错误类型，帮助调试。
+
+## 构建和运行
+
+### 开发模式
+```bash
+# 快速构建和测试
+make dev
+make run-help
+
+# 格式化代码
+make fmt
+
+# 运行 clippy 检查
+make clippy
+```
+
+### 发布模式
+```bash
+make release
+```

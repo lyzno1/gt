@@ -1,0 +1,75 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# GT (Git Toolkit) 项目概览
+
+GT 是一个用 Rust 重写的下一代 Git 工作流工具，旨在提供比传统 shell 脚本更快、更可靠、更友好的体验。
+
+## 项目结构
+
+### 核心入口点
+- [src/main.rs](mdc:src/main.rs) - 程序主入口，处理命令行参数和错误处理
+- [src/lib.rs](mdc:src/lib.rs) - 库入口，导出主要模块
+
+### 命令行接口层
+- [src/cli/args.rs](mdc:src/cli/args.rs) - 使用 clap 定义所有命令行参数和子命令
+- [src/cli/router.rs](mdc:src/cli/router.rs) - 命令路由器，分发命令到对应处理器
+
+### 命令实现层 (src/commands/)
+- [src/commands/start.rs](mdc:src/commands/start.rs) - 创建新功能分支
+- [src/commands/save.rs](mdc:src/commands/save.rs) - 保存工作进度 (add + commit)
+- [src/commands/update.rs](mdc:src/commands/update.rs) - 同步分支到最新状态
+- [src/commands/ship.rs](mdc:src/commands/ship.rs) - 提交工作成果到主分支
+- [src/commands/sp.rs](mdc:src/commands/sp.rs) - 保存并推送 (save + push)
+- [src/commands/clean.rs](mdc:src/commands/clean.rs) - 清理分支
+- [src/commands/init.rs](mdc:src/commands/init.rs) - 初始化仓库
+- [src/commands/config.rs](mdc:src/commands/config.rs) - 配置管理
+
+### Git 操作抽象层 (src/git/)
+- [src/git/mod.rs](mdc:src/git/mod.rs) - Git 模块主入口
+- [src/git/repository.rs](mdc:src/git/repository.rs) - Git 仓库核心抽象
+- [src/git/branch.rs](mdc:src/git/branch.rs) - 分支操作
+- [src/git/commit.rs](mdc:src/git/commit.rs) - 提交操作
+- [src/git/remote.rs](mdc:src/git/remote.rs) - 远程仓库操作
+- [src/git/stash.rs](mdc:src/git/stash.rs) - 工作区暂存操作
+
+### GitHub 集成 (src/github/)
+- [src/github/cli.rs](mdc:src/github/cli.rs) - GitHub CLI 抽象接口
+- [src/github/pr.rs](mdc:src/github/pr.rs) - Pull Request 管理
+
+### 配置管理 (src/config/)
+- [src/config/repository.rs](mdc:src/config/repository.rs) - 仓库配置管理
+
+### 错误处理 (src/error/)
+- [src/error/types.rs](mdc:src/error/types.rs) - 错误类型定义
+- [src/error/handler.rs](mdc:src/error/handler.rs) - 错误处理器
+
+### 用户界面
+- [src/ui.rs](mdc:src/ui.rs) - 用户界面组件和交互
+
+## 核心功能
+
+### 🌟 核心工作流命令
+1. `gt start` - 开始新的功能分支
+2. `gt save` - 保存当前工作进度
+3. `gt sp` - 保存并推送
+4. `gt update` - 同步分支到最新状态
+5. `gt ship` - 提交工作成果
+
+### 🛠️ Git 增强命令
+- `gt status` - 显示仓库状态
+- `gt rm` - 删除分支
+
+### 🚀 仓库管理
+- `gt init` - 初始化 Git 仓库
+- `gt config` - 配置管理
+
+## 全局选项
+- `-v, --verbose` - 启用详细输出
+- `-n, --dry-run` - 预演模式，不执行实际操作
+- `-y, --yes` - 非交互模式，自动确认所有提示
+
+## 架构设计
+采用分层架构：CLI Layer → Application Layer → Domain Layer → Infrastructure Layer

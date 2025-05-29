@@ -61,8 +61,8 @@ impl ErrorHandler {
             GtError::GitError(git_err) => {
                 eprintln!("  Git 错误详情: {}", git_err);
             }
-            GtError::IoError(io_err) => {
-                eprintln!("  IO 错误详情: {}", io_err);
+            GtError::IoError { operation, error } => {
+                eprintln!("  IO 错误详情: {} - {}", operation, error);
             }
             GtError::NetworkTimeout { attempts } => {
                 eprintln!("  网络重试次数: {}", attempts);

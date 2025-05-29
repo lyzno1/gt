@@ -12,6 +12,10 @@ pub enum GtError {
     #[error("当前目录不是 Git 仓库")]
     NotInGitRepo,
     
+    /// 不在 Git 仓库中 (别名)
+    #[error("当前目录不是 Git 仓库")]
+    NotGitRepository,
+    
     /// 分支相关错误
     #[error("分支 '{branch}' 不存在")]
     BranchNotFound { branch: String },
@@ -48,6 +52,9 @@ pub enum GtError {
     #[error("网络连接失败，已重试 {attempts} 次")]
     NetworkTimeout { attempts: u32 },
     
+    #[error("网络错误: {message}")]
+    NetworkError { message: String },
+    
     /// GitHub 相关错误
     #[error("GitHub API 错误: {0}")]
     GitHubError(#[from] octocrab::Error),
@@ -75,6 +82,24 @@ pub enum GtError {
     #[error("无效的用户输入: {input}")]
     InvalidInput { input: String },
     
+    /// 编辑器相关错误
+    #[error("编辑器错误: {editor} - {message}")]
+    EditorError { editor: String, message: String },
+    
+    #[error("未找到可用的编辑器")]
+    EditorNotFound,
+    
+    #[error("提交信息为空")]
+    EmptyCommitMessage,
+    
+    /// 命令执行错误
+    #[error("命令执行失败: {command} - {error}")]
+    CommandError { command: String, error: String },
+    
+    /// IO 操作错误（自定义格式）
+    #[error("IO 操作失败: {operation} - {error}")]
+    IoError { operation: String, error: String },
+    
     /// 工作流错误
     #[error("工作流验证失败: {reason}")]
     WorkflowValidationError { reason: String },
@@ -92,13 +117,17 @@ pub enum GtError {
     #[error("权限不足: {operation}")]
     PermissionDenied { operation: String },
     
+    /// Git 操作错误
+    #[error("Git 操作失败: {message}")]
+    GitOperation { message: String },
+    
     /// Git 底层错误
     #[error("Git 操作失败: {0}")]
     GitError(#[from] git2::Error),
     
-    /// IO 错误
+    /// 标准 IO 错误
     #[error("IO 错误: {0}")]
-    IoError(#[from] std::io::Error),
+    StdIoError(#[from] std::io::Error),
     
     /// 序列化错误
     #[error("序列化错误: {0}")]
@@ -167,7 +196,7 @@ impl GtError {
             Self::UserCancelled | Self::InvalidInput { .. } => ErrorSeverity::Info,
             Self::UncommittedChanges | Self::UntrackedFiles => ErrorSeverity::Warning,
             Self::NetworkTimeout { .. } | Self::RemoteError { .. } => ErrorSeverity::Error,
-            Self::GitError(_) | Self::IoError(_) => ErrorSeverity::Critical,
+            Self::GitError(_) | Self::IoError { .. } | Self::StdIoError(_) => ErrorSeverity::Critical,
             _ => ErrorSeverity::Error,
         }
     }

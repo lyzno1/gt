@@ -12,7 +12,7 @@ pub mod ship;
 pub mod clean;
 
 // Git操作增强封装 - TODO: 待实现
-pub mod status;
+// pub mod status;
 // pub mod add;
 // pub mod commit;
 // pub mod push;
@@ -40,13 +40,12 @@ pub mod config;
 // pub mod push_aliases;
 
 // 重新导出主要类型
-pub use start::StartCommand;
+pub use start::{StartCommand, StartOptions};
 pub use save::SaveCommand;
 pub use sp::SpCommand;
 pub use update::UpdateCommand;
 pub use ship::{ShipCommand, MergeStrategy};
 // pub use rm::RmCommand;
 pub use clean::CleanCommand;
-pub use status::StatusCommand;
 pub use init::InitCommand;
 pub use config::ConfigCommand; 

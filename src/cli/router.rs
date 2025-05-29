@@ -68,7 +68,7 @@ impl CommandRouter {
             
             // 🛠️ Git操作增强封装
             Commands::Status { remote, log } => {
-                self.handle_status(remote, log).await
+                self.handle_status().await
             }
             
             // 暂时返回未实现错误的Git封装命令
@@ -142,9 +142,18 @@ impl CommandRouter {
     
     /// 处理 start 命令
     async fn handle_start(&self, branch: String, base: String, local: bool) -> GtResult<()> {
-        use crate::commands::StartCommand;
+        use crate::commands::{StartCommand, start::StartOptions};
         
-        let cmd = StartCommand::new(branch, base, local);
+        let options = StartOptions {
+            branch,
+            base: if base.is_empty() { None } else { Some(base) },
+            local,
+            force: false,
+            skip_update: false,
+            description: None,
+        };
+        
+        let cmd = StartCommand::new(options);
         cmd.execute().await
     }
     
@@ -200,11 +209,24 @@ impl CommandRouter {
     }
     
     /// 处理 status 命令
-    async fn handle_status(&self, remote: bool, log: bool) -> GtResult<()> {
-        use crate::commands::StatusCommand;
+    async fn handle_status(&self) -> GtResult<()> {
+        // 直接使用 GitOps 来检查状态，不再需要 StatusCommand
+        let git_ops = crate::git::GitOps::new()?;
+        let status = git_ops.check_status()?;
         
-        let cmd = StatusCommand::new(remote, log);
-        cmd.execute().await
+        println!("工作区状态:");
+        println!("  修改的文件: {}", status.modified_files);
+        println!("  新增的文件: {}", status.added_files);
+        println!("  删除的文件: {}", status.deleted_files);
+        println!("  未追踪的文件: {}", status.untracked_files);
+        
+        if status.is_clean() {
+            println!("✅ 工作区干净");
+        } else {
+            println!("⚠️ 工作区有未处理的变更");
+        }
+        
+        Ok(())
     }
     
     /// 处理 init 命令

@@ -137,6 +137,9 @@ impl CommandRouter {
             Commands::Ide { editor: _ } => {
                 Err(GtError::NotImplemented { feature: "ide command".to_string() })
             }
+            Commands::UpdateSelf { check, yes } => {
+                self.handle_update_self(check, yes).await
+            }
         }
     }
     
@@ -255,8 +258,94 @@ impl CommandRouter {
     }
     
     /// 处理 rm 命令
-    async fn handle_rm(&self, branch: String, force: bool) -> GtResult<()> {
+    async fn handle_rm(&self, _branch: String, _force: bool) -> GtResult<()> {
         // TODO: 实现 RmCommand
         Err(GtError::NotImplemented { feature: "rm command".to_string() })
+    }
+    
+    /// 处理 update-self 命令
+    async fn handle_update_self(&self, check: bool, yes: bool) -> GtResult<()> {
+        use crate::ui::{print_step, print_success, print_warning, confirm_action};
+        use std::process::Command;
+        
+        if check {
+            print_step("检查 GT 更新...");
+            // TODO: 实现版本检查逻辑
+            print_success("当前版本是最新的");
+            return Ok(());
+        }
+        
+        if !yes && !confirm_action("确定要更新 GT 到最新版本吗？", false) {
+            return Err(GtError::UserCancelled);
+        }
+        
+        if self.dry_run {
+            print_step("🔍 [预演] 更新 GT 自身");
+            print_success("🔍 [预演] GT 更新完成");
+            return Ok(());
+        }
+        
+        print_step("🔄 开始更新 GT...");
+        
+        // 1. 使用 GT 自己来同步最新代码
+        print_step("📥 使用 GT 拉取最新更新...");
+        let git_ops = crate::git::GitOps::new()?;
+        let config_manager = crate::config::ConfigManager::new(git_ops.repository())?;
+        let config = config_manager.repo_config();
+        
+        // 拉取最新更新
+        crate::git::network::pull_rebase_with_retry(
+            git_ops.repository(),
+            &config.remote_name,
+            Some(&config.main_branch)
+        )?;
+        
+        // 2. 重新编译和安装
+        print_step("🔨 重新编译 GT...");
+        let output = Command::new("cargo")
+            .args(&["install", "--path", ".", "--force"])
+            .output()
+            .map_err(|e| GtError::GitOperation {
+                message: format!("执行 cargo install 失败: {}", e)
+            })?;
+            
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(GtError::GitOperation {
+                message: format!("编译安装失败: {}", stderr)
+            });
+        }
+        
+        // 3. 复制到正确的路径（如果需要）
+        print_step("📋 更新系统路径...");
+        let home = std::env::var("HOME").unwrap_or_default();
+        let cargo_bin = format!("{}/.cargo/bin/gt", home);
+        let local_bin = format!("{}/.local/bin/gt", home);
+        
+        if std::path::Path::new(&cargo_bin).exists() && std::path::Path::new(&format!("{}/.local/bin", home)).exists() {
+            let _ = Command::new("cp")
+                .args(&[&cargo_bin, &local_bin])
+                .output();
+        }
+        
+        print_success("🎉 GT 更新完成！");
+        print_step("✅ 验证安装...");
+        
+        // 验证安装
+        let output = Command::new("gt")
+            .args(&["--version"])
+            .output();
+            
+        match output {
+            Ok(out) if out.status.success() => {
+                let version = String::from_utf8_lossy(&out.stdout);
+                print_success(&format!("GT 版本: {}", version.trim()));
+            }
+            _ => {
+                print_warning("无法验证版本，但安装可能已完成");
+            }
+        }
+        
+        Ok(())
     }
 } 

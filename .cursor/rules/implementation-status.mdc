@@ -1,0 +1,146 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# GT 实现状态跟踪
+
+## 命令实现状态
+
+### ✅ 已基本实现
+- **gt start** - 创建新功能分支
+  - 文件：[src/commands/start.rs](mdc:src/commands/start.rs)
+  - 状态：基本功能完整，但网络操作有问题
+  - 问题：TLS 连接失败导致无法拉取远程更新
+
+- **gt save** - 保存工作进度
+  - 文件：[src/commands/save.rs](mdc:src/commands/save.rs)
+  - 状态：基本功能完整
+  - 支持：交互式提交、文件选择、编辑器集成
+
+- **gt status** - 显示仓库状态
+  - 文件：[src/cli/router.rs](mdc:src/cli/router.rs) (handle_status 方法)
+  - 状态：基本实现，直接使用 GitOps
+
+- **gt update** - 同步分支
+  - 文件：[src/commands/update.rs](mdc:src/commands/update.rs)
+  - 状态：基本功能完整
+  - 支持：智能 stash 管理、冲突检测
+
+### 🚧 部分实现
+- **gt ship** - 提交工作成果
+  - 文件：[src/commands/ship.rs](mdc:src/commands/ship.rs)
+  - 状态：结构完整，但 GitHub 集成可能有问题
+  - 支持：多种合并策略、PR 创建
+
+- **gt sp** - 保存并推送
+  - 文件：[src/commands/sp.rs](mdc:src/commands/sp.rs)
+  - 状态：结构存在，但 execute 方法未实现
+  - 问题：字段定义了但未使用
+
+### ❌ 未实现
+- **gt config** - 配置管理
+  - 文件：[src/commands/config.rs](mdc:src/commands/config.rs)
+  - 状态：返回 NotImplemented 错误
+  - 需要：完整的配置管理逻辑
+
+- **gt init** - 初始化仓库
+  - 文件：[src/commands/init.rs](mdc:src/commands/init.rs)
+  - 状态：结构存在，execute 方法未实现
+
+- **gt clean** - 清理分支
+  - 文件：[src/commands/clean.rs](mdc:src/commands/clean.rs)
+  - 状态：结构存在，execute 方法未实现
+
+- **gt rm** - 删除分支
+  - 文件：[src/cli/router.rs](mdc:src/cli/router.rs) (handle_rm 方法)
+  - 状态：方法存在但未实现
+
+## 核心模块状态
+
+### Git 操作层
+- **GitOps** - [src/git/mod.rs](mdc:src/git/mod.rs)
+  - 状态：基本框架完整
+  - 问题：网络操作的 TLS 支持
+
+- **Repository** - [src/git/repository.rs](mdc:src/git/repository.rs)
+  - 状态：核心抽象完整
+  - 功能：状态查询、基本操作
+
+### GitHub 集成
+- **GitHub CLI** - [src/github/cli.rs](mdc:src/github/cli.rs)
+  - 状态：基本抽象完整
+  - 功能：认证检查、命令执行
+
+- **Pull Request** - [src/github/pr.rs](mdc:src/github/pr.rs)
+  - 状态：结构完整，部分方法未实现
+  - 问题：JSON 解析方法为空实现
+
+### 配置管理
+- **ConfigManager** - [src/config/repository.rs](mdc:src/config/repository.rs)
+  - 状态：基本配置读取完整
+  - 功能：环境变量、Git 配置检测
+
+### 错误处理
+- **错误类型** - [src/error/types.rs](mdc:src/error/types.rs)
+  - 状态：基本错误类型定义完整
+  - 功能：Git 错误、网络错误、用户错误
+
+## 编译警告分析
+
+### 未使用的导入
+- [src/commands/start.rs](mdc:src/commands/start.rs):7 - `Repository` 导入未使用
+- [src/error/handler.rs](mdc:src/error/handler.rs) - 多个未使用导入
+- [src/git/](mdc:src/git/) 多个文件 - `GtError` 导入未使用
+
+### 未使用的变量
+- [src/cli/router.rs](mdc:src/cli/router.rs) - `remote`, `log`, `branch`, `force` 等
+- [src/git/repository.rs](mdc:src/git/repository.rs) - `signature`, `message`, `oid` 等
+
+### 未读取的字段
+- [src/commands/sp.rs](mdc:src/commands/sp.rs) - `message`, `edit`, `files` 字段
+- [src/commands/clean.rs](mdc:src/commands/clean.rs) - `branch` 字段
+- [src/commands/init.rs](mdc:src/commands/init.rs) - `path` 字段
+- [src/commands/config.rs](mdc:src/commands/config.rs) - `action` 字段
+
+## 优先级修复建议
+
+### 高优先级
+1. **网络连接问题** - 修复 TLS 错误或添加离线模式
+2. **未实现的核心命令** - 完成 sp, config, init, clean 命令
+3. **清理编译警告** - 移除未使用的代码
+
+### 中优先级
+1. **GitHub 集成完善** - 完成 PR 管理的 JSON 解析
+2. **错误处理改进** - 更好的错误恢复机制
+3. **测试覆盖** - 添加单元测试和集成测试
+
+### 低优先级
+1. **性能优化** - 异步操作优化
+2. **用户体验** - 更好的进度显示和交互
+3. **文档完善** - API 文档和使用示例
+
+## 测试建议
+
+### 当前可测试的功能
+```bash
+# 预演模式测试（安全）
+cargo run -- --dry-run start test-branch
+cargo run -- --dry-run save -m "test"
+cargo run -- --dry-run update
+
+# 本地模式测试（避免网络问题）
+cargo run -- start test-branch --local
+
+# 状态查询（只读操作）
+cargo run -- status
+```
+
+### 需要修复后测试
+```bash
+# 这些命令当前会失败
+cargo run -- config
+cargo run -- init
+cargo run -- clean test-branch
+cargo run -- sp -m "test"
+```

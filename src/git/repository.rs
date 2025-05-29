@@ -598,25 +598,22 @@ impl Repository {
     pub fn push(&self, remote: &str, branch: Option<&str>) -> GtResult<()> {
         let current_branch = self.current_branch()?;
         let branch = branch.unwrap_or(&current_branch);
-        let refspec = format!("refs/heads/{}:refs/heads/{}", branch, branch);
         
-        let mut remote = self.inner.find_remote(remote)
-            .map_err(|_| GtError::RemoteNotFound { remote: remote.to_string() })?;
-            
-        // 推送操作需要回调函数来处理认证
-        let mut callbacks = git2::RemoteCallbacks::new();
-        callbacks.credentials(|_url, username_from_url, _allowed_types| {
-            // 尝试使用 SSH 密钥
-            git2::Cred::ssh_key_from_agent(username_from_url.unwrap_or("git"))
-        });
-        
-        let mut push_options = git2::PushOptions::new();
-        push_options.remote_callbacks(callbacks);
-        
-        remote.push(&[&refspec], Some(&mut push_options))
-            .map_err(|e| GtError::PushFailed { 
-                reason: format!("推送失败: {}", e) 
+        // 使用系统 git 命令而不是 git2 的网络功能
+        let output = Command::new("git")
+            .args(&["push", remote, branch])
+            .current_dir(&self.path)
+            .output()
+            .map_err(|e| GtError::GitOperation {
+                message: format!("执行 git push 命令失败: {}", e)
             })?;
+            
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(GtError::PushFailed { 
+                reason: format!("推送失败: {}", stderr) 
+            });
+        }
             
         Ok(())
     }
@@ -628,14 +625,24 @@ impl Repository {
     
     /// 拉取并 rebase（推荐方式，保持线性历史）
     pub fn pull_rebase(&self, remote: &str, branch: Option<&str>) -> GtResult<()> {
-        // 先 fetch
-        self.fetch(remote)?;
-        
-        // 然后 rebase
         let current_branch = self.current_branch()?;
         let branch = branch.unwrap_or(&current_branch);
-        let remote_branch = format!("{}/{}", remote, branch);
-        self.rebase(&remote_branch)?;
+        
+        // 使用系统 git 命令
+        let output = Command::new("git")
+            .args(&["pull", "--rebase", remote, branch])
+            .current_dir(&self.path)
+            .output()
+            .map_err(|e| GtError::GitOperation {
+                message: format!("执行 git pull 命令失败: {}", e)
+            })?;
+            
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(GtError::GitOperation {
+                message: format!("拉取失败: {}", stderr)
+            });
+        }
         
         Ok(())
     }
@@ -656,21 +663,21 @@ impl Repository {
     
     /// 从远程仓库抓取
     pub fn fetch(&self, remote: &str) -> GtResult<()> {
-        let mut remote = self.inner.find_remote(remote)
-            .map_err(|_| GtError::RemoteNotFound { remote: remote.to_string() })?;
-            
-        let mut callbacks = git2::RemoteCallbacks::new();
-        callbacks.credentials(|_url, username_from_url, _allowed_types| {
-            git2::Cred::ssh_key_from_agent(username_from_url.unwrap_or("git"))
-        });
-        
-        let mut fetch_options = git2::FetchOptions::new();
-        fetch_options.remote_callbacks(callbacks);
-        
-        remote.fetch(&[] as &[String], Some(&mut fetch_options), None)
+        // 使用系统 git 命令而不是 git2 的网络功能
+        let output = Command::new("git")
+            .args(&["fetch", remote])
+            .current_dir(&self.path)
+            .output()
             .map_err(|e| GtError::GitOperation {
-                message: format!("抓取失败: {}", e)
+                message: format!("执行 git fetch 命令失败: {}", e)
             })?;
+            
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(GtError::GitOperation {
+                message: format!("抓取失败: {}", stderr)
+            });
+        }
             
         Ok(())
     }

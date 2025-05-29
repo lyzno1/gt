@@ -88,12 +88,7 @@ impl StartCommand {
         // 5. 创建并切换到新分支
         self.create_and_checkout_branch(&git_ops, &base_branch)?;
         
-        // 6. 推送到远程（如果不是本地模式）
-        if !self.options.local {
-            self.push_branch(&git_ops, config).await?;
-        }
-        
-        // 7. 显示成功信息和后续建议
+        // 6. 显示成功信息和后续建议
         self.show_success_info();
         
         Ok(())
@@ -230,27 +225,6 @@ impl StartCommand {
         git_ops.create_and_checkout_branch(&self.options.branch, Some(base_branch))?;
         
         print_success(&format!("已创建并切换到分支 '{}'", self.options.branch));
-        Ok(())
-    }
-    
-    /// 推送分支到远程
-    async fn push_branch(&self, git_ops: &GitOps, config: &RepoConfig) -> GtResult<()> {
-        if self.options.dry_run {
-            print_step(&format!("🔍 [预演] 推送分支 '{}' 到远程", self.options.branch));
-            print_success(&format!("🔍 [预演] 分支 '{}' 已推送到远程", self.options.branch));
-            return Ok(());
-        }
-        
-        print_step(&format!("推送分支 '{}' 到远程", self.options.branch));
-        
-        // 使用网络重试机制推送
-        crate::git::network::push_with_retry(
-            git_ops.repository(),
-            &config.remote_name,
-            Some(&self.options.branch)
-        )?;
-        
-        print_success(&format!("分支 '{}' 已推送到远程", self.options.branch));
         Ok(())
     }
     

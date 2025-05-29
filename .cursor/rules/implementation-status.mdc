@@ -1,0 +1,191 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# GT 实现状态跟踪
+
+## 核心问题分析
+
+### 1. 预演模式问题 ❌
+**问题**：预演模式 (`--dry-run`) 已在 [src/cli/router.rs](mdc:src/cli/router.rs) 中实现，但**实际上并不生效**。
+- 代码显示 "🔍 预演模式: 不会执行实际操作"
+- 但仍然执行了实际的网络操作（TLS 连接尝试）
+- **根本原因**：预演模式的检查没有传递到具体的命令实现中
+
+### 2. TLS 连接问题 🔥
+**问题**：`there is no TLS stream available; class=Ssl (16)` 错误
+- 位置：[src/git/network.rs](mdc:src/git/network.rs) 的网络操作
+- **根本原因**：git2 库的 TLS 配置问题，可能是 OpenSSL 或网络环境问题
+- **影响**：所有需要网络连接的操作都会失败
+
+### 3. 大量编译警告 ⚠️
+**统计**：27个库警告 + 1个二进制警告
+- 未使用的导入：多个模块中的 `GtError`, `GtResult` 等
+- 未使用的变量：方法参数未实际使用
+- 未读取的字段：结构体字段定义但未使用
+
+## 命令实现状态详细分析
+
+### ✅ 已基本实现但有问题
+- **gt start** - [src/commands/start.rs](mdc:src/commands/start.rs)
+  - ✅ 基本逻辑完整：验证输入、检查工作区、创建分支
+  - ❌ 网络操作失败（TLS 问题）
+  - ❌ 预演模式不生效
+  - ⚠️ 未使用的 `Repository` 导入
+
+- **gt save** - [src/commands/save.rs](mdc:src/commands/save.rs)
+  - ✅ 完整实现：文件添加、交互式提交、编辑器集成
+  - ✅ 错误处理完善
+  - ✅ 可以正常工作（无网络依赖）
+
+- **gt update** - [src/commands/update.rs](mdc:src/commands/update.rs)
+  - ✅ 智能 stash 管理
+  - ✅ 冲突检测和恢复
+  - ❌ 网络操作失败（TLS 问题）
+  - ⚠️ 未使用的 `git_ops` 参数
+
+- **gt status** - [src/cli/router.rs](mdc:src/cli/router.rs):handle_status
+  - ✅ 基本实现，直接使用 GitOps
+  - ⚠️ 未使用的 `remote`, `log` 参数
+
+### 🚧 结构完整但功能未实现
+- **gt ship** - [src/commands/ship.rs](mdc:src/commands/ship.rs)
+  - ✅ 完整的结构设计：合并策略、PR 创建、分支清理
+  - ✅ GitHub 集成框架
+  - ❌ 部分方法可能有网络依赖问题
+
+### ❌ 完全未实现（仅返回 NotImplemented）
+- **gt sp** - [src/commands/sp.rs](mdc:src/commands/sp.rs)
+  - ✅ 结构定义完整
+  - ❌ `execute` 方法直接返回 `NotImplemented`
+  - ⚠️ 所有字段 (`message`, `edit`, `files`) 未使用
+
+- **gt config** - [src/commands/config.rs](mdc:src/commands/config.rs)
+  - ✅ 基本结构
+  - ❌ `execute` 方法直接返回 `NotImplemented`
+  - ⚠️ `action` 字段未使用
+
+- **gt init** - [src/commands/init.rs](mdc:src/commands/init.rs)
+  - ✅ 基本结构
+  - ❌ `execute` 方法直接返回 `NotImplemented`
+  - ⚠️ `path` 字段未使用
+
+- **gt clean** - [src/commands/clean.rs](mdc:src/commands/clean.rs)
+  - ✅ 基本结构和 TODO 注释
+  - ❌ `execute` 方法直接返回 `NotImplemented`
+  - ⚠️ `branch` 字段未使用
+
+- **gt rm** - [src/cli/router.rs](mdc:src/cli/router.rs):handle_rm
+  - ❌ 方法存在但完全未实现
+  - ⚠️ 所有参数 (`branch`, `force`) 未使用
+
+## 核心模块状态
+
+### Git 操作层 - 实现完整但有网络问题
+- **Repository** - [src/git/repository.rs](mdc:src/git/repository.rs)
+  - ✅ 1120行，功能非常完整
+  - ✅ 状态检查、分支操作、提交管理、远程操作
+  - ⚠️ 部分未使用变量：`signature`, `message`, `oid`
+
+- **NetworkOps** - [src/git/network.rs](mdc:src/git/network.rs)
+  - ✅ 完整的重试机制（最多50次，1秒间隔）
+  - ✅ 智能推送/拉取逻辑
+  - ❌ TLS 连接问题导致所有网络操作失败
+
+### GitHub 集成 - 框架完整但细节未实现
+- **GitHub CLI** - [src/github/cli.rs](mdc:src/github/cli.rs)
+  - ✅ 认证检查、命令执行抽象
+  - ✅ 错误处理完善
+
+- **Pull Request** - [src/github/pr.rs](mdc:src/github/pr.rs)
+  - ✅ 完整的 PR 管理结构
+  - ❌ JSON 解析方法为空实现
+  - ⚠️ 未使用的导入和变量
+
+### 错误处理 - 设计优秀
+- **错误类型** - [src/error/types.rs](mdc:src/error/types.rs)
+  - ✅ 234行，非常完整的错误类型定义
+  - ✅ 错误严重程度分级
+  - ✅ 恢复性检查、确认需求检查
+  - ✅ 丰富的错误上下文信息
+
+### 用户界面 - 模块化设计
+- **UI 模块** - [src/ui/](mdc:src/ui/)
+  - ✅ 分离的颜色、打印、提示模块
+  - ✅ 重新导出常用功能
+
+## 修复优先级
+
+### 🔥 紧急修复
+1. **预演模式修复**
+   - 问题：预演模式标志未传递到命令执行层
+   - 解决：在 `CommandRouter` 中将 `dry_run` 传递给各个命令
+
+2. **TLS 连接问题**
+   - 临时方案：添加 `--offline` 模式跳过网络操作
+   - 长期方案：修复 git2 的 TLS 配置
+
+### ⚡ 高优先级
+3. **完成核心命令实现**
+   - `gt sp`: 组合 save + push 逻辑
+   - `gt config`: 配置管理功能
+   - `gt init`: Git 仓库初始化
+   - `gt clean`: 分支清理功能
+
+4. **清理编译警告**
+   - 移除未使用的导入
+   - 修复未使用的变量和字段
+
+### 📈 中优先级
+5. **GitHub 集成完善**
+   - 完成 JSON 解析实现
+   - 测试 PR 创建和合并功能
+
+6. **网络操作优化**
+   - 添加更好的错误恢复
+   - 实现真正的离线模式
+
+## 测试策略更新
+
+### 当前可安全测试
+```bash
+# 纯本地操作（无网络依赖）
+cargo run -- save -m "test commit"
+cargo run -- status
+
+# 本地模式（跳过网络操作）
+cargo run -- start test-branch --local
+
+# 预演模式（但目前不完全生效）
+cargo run -- --dry-run save -m "test"
+```
+
+### 需要修复后测试
+```bash
+# 网络相关操作
+cargo run -- start test-branch  # TLS 问题
+cargo run -- update            # TLS 问题
+cargo run -- ship --pr         # 可能有网络问题
+
+# 未实现的命令
+cargo run -- sp -m "test"      # NotImplemented
+cargo run -- config            # NotImplemented
+cargo run -- init              # NotImplemented
+cargo run -- clean branch      # NotImplemented
+```
+
+## 架构优势
+
+### ✅ 设计优秀的部分
+1. **分层架构清晰**：CLI → Commands → Git → Infrastructure
+2. **错误处理完善**：丰富的错误类型和恢复机制
+3. **异步设计**：所有命令都是异步的
+4. **模块化 UI**：分离的用户界面组件
+5. **配置管理**：环境变量和 Git 配置集成
+
+### 🔧 需要改进的部分
+1. **预演模式实现**：标志传递不完整
+2. **网络操作稳定性**：TLS 配置问题
+3. **代码清理**：大量未使用的代码
+4. **测试覆盖**：缺少单元测试和集成测试

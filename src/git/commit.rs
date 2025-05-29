@@ -1,27 +1,28 @@
 //! Git 提交操作
 //! 
-//! 提供提交创建、修改等操作。
+//! 提供提交信息的类型定义。
 
-use crate::error::{GtResult, GtError};
+use std::fmt;
 
-/// 提交操作
-pub struct CommitManager {
-    // TODO: 添加字段
+/// Git 提交信息
+#[derive(Debug, Clone)]
+pub struct Commit {
+    /// 提交 ID
+    pub id: String,
+    /// 提交消息
+    pub message: String,
+    /// 作者
+    pub author: String,
+    /// 作者邮箱
+    pub author_email: String,
+    /// 提交时间
+    pub time: i64,
+    /// 父提交 ID 列表
+    pub parents: Vec<String>,
 }
 
-impl CommitManager {
-    /// 创建新的提交管理器
-    pub fn new() -> Self {
-        Self {
-            // TODO: 初始化字段
-        }
-    }
-    
-    /// 创建提交
-    pub async fn create_commit(&self, _message: &str) -> GtResult<()> {
-        // TODO: 实现提交创建逻辑
-        Err(GtError::NotImplemented { 
-            feature: "commit creation".to_string() 
-        })
+impl fmt::Display for Commit {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} {}", &self.id[..8], self.message.lines().next().unwrap_or(""))
     }
 } 

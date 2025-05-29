@@ -149,8 +149,9 @@ impl CommandRouter {
             base: if base.is_empty() { None } else { Some(base) },
             local,
             force: false,
-            skip_update: false,
+            skip_update: self.dry_run,
             description: None,
+            dry_run: self.dry_run,
         };
         
         let cmd = StartCommand::new(options);

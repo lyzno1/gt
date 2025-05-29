@@ -353,13 +353,14 @@ impl PullRequestManager {
         self.parse_pr_from_url(&url, &options)
     }
     
-    /// 智能合并 PR - 增强版本，支持预检查和自动重试
+    /// 合并 PR - 支持多种策略和选项
     pub fn merge_pr(&self, pr_url: &str, options: MergePrOptions) -> GtResult<()> {
         if self.gh.is_verbose() {
             print_step(&format!(
-                "合并 PR: {} (策略: {}{})", 
-                pr_url, 
+                "合并 PR: {} (策略: {}){}{}",
+                pr_url,
                 options.strategy.description(),
+                if options.wait_for_checks { "，等待检查通过" } else { "" },
                 if options.delete_branch { "，合并后删除分支" } else { "" }
             ));
         }
@@ -382,18 +383,61 @@ impl PullRequestManager {
             args.extend(&["--subject", message]);
         }
         
+        // 改进自动合并逻辑
         if options.auto_merge {
-            args.push("--auto");
-        }
-        
-        let _output = self.gh.execute_command(&args)?;
-        
-        if self.gh.is_verbose() {
-            print_success(&format!(
-                "PR 已成功{} (策略: {})", 
-                if options.auto_merge { "设置为自动合并" } else { "合并" },
-                options.strategy.description()
-            ));
+            // 先尝试直接合并
+            match self.gh.execute_command(&args) {
+                Ok(_output) => {
+                    if self.gh.is_verbose() {
+                        print_success(&format!(
+                            "PR 已成功合并 (策略: {})", 
+                            options.strategy.description()
+                        ));
+                    }
+                    return Ok(());
+                }
+                Err(e) => {
+                    // 如果直接合并失败，尝试启用自动合并
+                    if self.gh.is_verbose() {
+                        print_step("直接合并失败，尝试启用自动合并...");
+                    }
+                    
+                    // 添加 --auto 参数重试
+                    args.push("--auto");
+                    let _output = self.gh.execute_command(&args)
+                        .map_err(|auto_err| {
+                            // 如果自动合并也失败，返回更详细的错误信息
+                            GtError::ConfigError {
+                                message: format!(
+                                    "合并失败。直接合并错误: {}。自动合并错误: {}。\n\
+                                    建议：\n\
+                                    1. 检查 PR 是否满足合并条件（所有检查通过、没有冲突等）\n\
+                                    2. 检查仓库是否启用了自动合并功能\n\
+                                    3. 检查是否有足够的权限进行合并操作\n\
+                                    4. 手动在 GitHub 网页上合并 PR: {}",
+                                    e, auto_err, pr_url
+                                )
+                            }
+                        })?;
+                    
+                    if self.gh.is_verbose() {
+                        print_success(&format!(
+                            "PR 已设置为自动合并 (策略: {})", 
+                            options.strategy.description()
+                        ));
+                    }
+                }
+            }
+        } else {
+            // 非自动合并模式，直接执行
+            let _output = self.gh.execute_command(&args)?;
+            
+            if self.gh.is_verbose() {
+                print_success(&format!(
+                    "PR 已成功合并 (策略: {})", 
+                    options.strategy.description()
+                ));
+            }
         }
         
         Ok(())

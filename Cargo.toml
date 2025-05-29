@@ -1,0 +1,90 @@
+[package]
+name = "gt"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.70"
+description = "Git Toolkit - Next generation Git workflow tool written in Rust"
+license = "MIT"
+repository = "https://github.com/lyzno1/gt"
+homepage = "https://github.com/lyzno1/gt"
+documentation = "https://docs.rs/gt"
+authors = ["GT Team <gt@example.com>"]
+keywords = ["git", "workflow", "cli", "development", "productivity"]
+categories = ["command-line-utilities", "development-tools"]
+include = [
+    "src/**/*",
+    "Cargo.toml",
+    "README.md",
+    "ARCHITECTURE.md",
+    "LICENSE*",
+]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[[bin]]
+name = "gt"
+path = "src/main.rs"
+
+[dependencies]
+# 核心依赖
+git2 = { version = "0.18", default-features = false, features = ["vendored-openssl"] }
+clap = { version = "4.5", features = ["derive", "color", "env", "unicode"] }
+tokio = { version = "1.35", features = ["full"] }
+anyhow = "1.0"
+thiserror = "1.0"
+
+# 配置和序列化
+serde = { version = "1.0", features = ["derive"] }
+toml = "0.8"
+dirs = "5.0"
+
+# 用户界面
+colored = "2.1"
+dialoguer = { version = "0.11", features = ["completion"] }
+indicatif = "0.17"
+console = "0.15"
+
+# GitHub 集成
+octocrab = { version = "0.32", features = ["default-tls"] }
+reqwest = { version = "0.11", features = ["json", "rustls-tls"], default-features = false }
+
+# 异步和并发
+async-trait = "0.1"
+futures = "0.3"
+
+# 工具
+regex = "1.10"
+shellexpand = "3.1"
+uuid = { version = "1.0", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+
+# 日志
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[dev-dependencies]
+tempfile = "3.8"
+assert_cmd = "2.0"
+predicates = "3.0"
+tokio-test = "0.4"
+
+[features]
+default = ["github", "tracing"]
+github = ["octocrab", "reqwest"]
+tracing = ["tracing-subscriber"]
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = "symbols"
+opt-level = 3
+
+[profile.dev]
+debug = true
+opt-level = 0
+
+[profile.dev.package."*"]
+opt-level = 3

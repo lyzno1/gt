@@ -1,0 +1,41 @@
+# Rust
+/target/
+Cargo.lock
+**/*.rs.bk
+*.pdb
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Config files (可能包含敏感信息)
+.env
+config.toml
+
+# 临时文件
+tmp/
+temp/
+.tmp/
+
+# 测试输出
+test-output/
+test-repos/
+
+# 包管理
+node_modules/
+.npm/
+
+# 文档构建
+book/
+docs/build/ 
